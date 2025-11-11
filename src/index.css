@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* PayBazaar Brand Colors */
+    --paybazaar-navy: 205 85% 15%; /* #072B4A */
+    --paybazaar-blue: 205 85% 30%; /* #075C89 */
+    --paybazaar-light: 205 100% 95%;
+    --paybazaar-accent: 205 85% 25%;
+    
+    /* Core Design System */
+    --background: 0 0% 100%;
+    --foreground: 205 85% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 205 85% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 205 85% 15%;
+
+    --primary: 205 85% 15%; /* PayBazaar Navy */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 205 85% 30%; /* PayBazaar Blue */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 205 25% 45%;
+
+    --accent: 205 100% 95%;
+    --accent-foreground: 205 85% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 210 40% 91%;
+    --input: 210 40% 91%;
+    --ring: 205 85% 15%;
+
+    --radius: 0.75rem;
+
+    /* PayBazaar Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--paybazaar-navy)), hsl(var(--paybazaar-blue)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--paybazaar-blue)), hsl(205 85% 40%));
+    --gradient-light: linear-gradient(135deg, hsl(var(--paybazaar-light)), hsl(0 0% 100%));
+
+    /* Shadows */
+    --shadow-primary: 0 10px 30px -10px hsl(var(--paybazaar-navy) / 0.3);
+    --shadow-card: 0 4px 20px -4px hsl(var(--paybazaar-navy) / 0.1);
+    --shadow-glow: 0 0 40px hsl(var(--paybazaar-blue) / 0.2);
+
+    /* Sidebar */
+    --sidebar-background: 205 85% 15%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 205 85% 30%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 205 85% 20%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 205 85% 25%;
+    --sidebar-ring: 205 85% 30%;
+  }
+
+  .dark {
+    --background: 220 30% 8%;
+    --foreground: 220 15% 95%;
+
+    --card: 220 28% 12%;
+    --card-foreground: 220 15% 95%;
+
+    --popover: 220 28% 12%;
+    --popover-foreground: 220 15% 95%;
+
+    --primary: 220 70% 25%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 220 70% 32%;
+
+    --secondary: 220 60% 35%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 220 60% 42%;
+
+    --success: 160 80% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --muted: 220 25% 18%;
+    --muted-foreground: 220 15% 65%;
+
+    --accent: 220 28% 18%;
+    --accent-foreground: 220 70% 60%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 25% 22%;
+    --input: 220 25% 18%;
+    --ring: 220 70% 50%;
+
+    --sidebar-background: 220 28% 10%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 220 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 28% 16%;
+    --sidebar-accent-foreground: 220 15% 85%;
+    --sidebar-border: 220 28% 14%;
+    --sidebar-ring: 220 70% 50%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(220 70% 25%) 0%, hsl(250 70% 35%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(220 60% 35%) 0%, hsl(240 60% 45%) 100%);
+    --gradient-light: linear-gradient(135deg, hsl(220 28% 14%) 0%, hsl(220 28% 12%) 100%);
+    --gradient-dark: linear-gradient(135deg, hsl(220 70% 18%) 0%, hsl(250 70% 22%) 100%);
+
+    --wallet-bg: hsl(160 80% 42% / 0.15);
+    --wallet-border: hsl(160 80% 45%);
+    --wallet-text: hsl(160 80% 55%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+
+  .gradient-light {
+    background: var(--gradient-light);
+  }
+
+  .gradient-dark {
+    background: var(--gradient-dark);
+  }
+
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .dark .glass-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.3);
+  }
+
+  .hover-glow {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 8px 30px hsl(var(--primary) / 0.25);
+    transform: translateY(-2px);
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
