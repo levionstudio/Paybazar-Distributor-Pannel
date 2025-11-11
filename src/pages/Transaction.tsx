@@ -63,7 +63,7 @@ export default function DistributorTransactions() {
   const fetchWalletBalance = async (token, distributorId) => {
     try {
       const res = await axios.get(
-        `http://64.227.165.232:8080/distributor/wallet/get/balance/${distributorId}`,
+        `https://server.paybazaar.in/distributor/wallet/get/balance/${distributorId}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -75,7 +75,7 @@ export default function DistributorTransactions() {
   const fetchTransactions = async (token, distributorId) => {
     try {
       const res = await axios.get(
-        `http://64.227.165.232:8080/distributor/wallet/get/transactions/${distributorId}`,
+        `https://server.paybazaar.in/distributor/wallet/get/transactions/${distributorId}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }

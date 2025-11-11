@@ -73,7 +73,7 @@ const CreateDistributorPage = () => {
 
       try {
         const res = await axios.get(
-          `http://64.227.165.232:8080/md/wallet/get/balance/${master_distributor_id}`,
+          `https://server.paybazaar.in/md/wallet/get/balance/${master_distributor_id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -115,7 +115,7 @@ const RequestFundsDistributor = () => {
 
       try {
         const res = await axios.get(
-          `http://64.227.165.232:8080/distributor/wallet/get/balance/${tokenData.data.distributor_id}`,
+          `https://server.paybazaar.in/distributor/wallet/get/balance/${tokenData.data.distributor_id}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

@@ -81,7 +81,7 @@ const DistributorDashboard = () => {
       try {
         // Retailer fetch
         const res = await axios.get(
-          `http://64.227.165.232:8080/distributor/get/user/${distributorId}`,
+          `https://server.paybazaar.in/distributor/get/user/${distributorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -112,7 +112,7 @@ const DistributorDashboard = () => {
 
         // Wallet balance fetch
         const walletRes = await axios.get(
-          `http://64.227.165.232:8080/distributor/wallet/get/balance/${distributorId}`,
+          `https://server.paybazaar.in/distributor/wallet/get/balance/${distributorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

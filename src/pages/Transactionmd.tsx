@@ -58,7 +58,7 @@ export default function MdTransactions() {
   const fetchWalletBalance = async (token: string, id: string) => {
     try {
       const res = await axios.get(
-        `http://64.227.165.232:8080/md/wallet/get/balance/${id}`,
+        `https://server.paybazaar.in/md/wallet/get/balance/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setWalletBalance(res.data?.data?.balance ?? 0);
@@ -70,7 +70,7 @@ export default function MdTransactions() {
   const fetchTransactions = async (token: string, id: string) => {
     try {
       const res = await axios.get(
-        `http://64.227.165.232:8080/md/wallet/get/transactions/${id}`,
+        `https://server.paybazaar.in/md/wallet/get/transactions/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setTransactions(res.data?.data ?? []);

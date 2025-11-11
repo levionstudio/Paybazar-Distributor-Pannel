@@ -74,9 +74,9 @@ const DashboardPage = () => {
 
       let apiUrl = "";
       if (userRole === "master" && decoded.data.master_distributor_id) {
-        apiUrl = `http://64.227.165.232:8080/md/wallet/get/balance/${decoded.data.master_distributor_id}`;
+        apiUrl = `https://server.paybazaar.in/md/wallet/get/balance/${decoded.data.master_distributor_id}`;
       } else if (userRole === "distributor" && decoded.data.distributor_id) {
-        apiUrl = `http://64.227.165.232:8080/distributor/wallet/get/balance/${decoded.data.distributor_id}`;
+        apiUrl = `https://server.paybazaar.in/distributor/wallet/get/balance/${decoded.data.distributor_id}`;
       } else {
         setWalletBalance(0);
         setLoading(false);

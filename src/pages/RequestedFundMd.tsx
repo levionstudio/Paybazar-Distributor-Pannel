@@ -84,7 +84,7 @@ export default function MdFundRequests() {
       try {
         // ✅ Fetch fund requests
         const res = await axios.get(
-          `http://64.227.165.232:8080/md/get/fund/request/${masterDistributorId}`,
+          `https://server.paybazaar.in/md/get/fund/request/${masterDistributorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -108,7 +108,7 @@ export default function MdFundRequests() {
 
         // ✅ Fetch wallet balance
         const walletRes = await axios.get(
-          `http://64.227.165.232:8080/md/wallet/get/balance/${masterDistributorId}`,
+          `https://server.paybazaar.in/md/wallet/get/balance/${masterDistributorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

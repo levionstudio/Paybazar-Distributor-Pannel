@@ -56,7 +56,7 @@ const Login = () => {
     setIsLoading(true);
     try {
       const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://64.227.165.232:8080";
+        import.meta.env.VITE_API_BASE_URL || "https://server.paybazaar.in";
 
       // Endpoints (adjust distributorEndpoint if your API uses a different path)
       const masterEndpoint = `${baseUrl}/md/login`;
