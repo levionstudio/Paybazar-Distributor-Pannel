@@ -91,7 +91,7 @@ const MasterDashboard = () => {
         }
       } catch (err) {
         console.error("Fetch error:", err);
-        setError("Something went wrong");
+        setError("No Distributors found.");
         setDistributors([]);
       } finally {
         setLoading(false);

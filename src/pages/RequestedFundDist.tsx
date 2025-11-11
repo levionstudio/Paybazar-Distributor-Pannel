@@ -118,7 +118,7 @@ export default function DistributorFundRequests() {
 
       } catch (err) {
         console.error(err);
-        setError("Something went wrong fetching data.");
+        setError("No fund requests found.");
       } finally {
         setLoading(false);
       }

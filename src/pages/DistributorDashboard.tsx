@@ -125,7 +125,7 @@ const DistributorDashboard = () => {
         }
       } catch (err: any) {
         console.error(err);
-        setError("Something went wrong fetching data.");
+        setError("No data found.");
         setRetailers([]);
         setWalletBalance(0);
       } finally {
