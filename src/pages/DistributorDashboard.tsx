@@ -81,7 +81,7 @@ const DistributorDashboard = () => {
       try {
         // Retailer fetch
         const res = await axios.get(
-          `https://server.paybazaar.in/distributor/get/user/${distributorId}`,
+          `https://server.paybazaar.in/admin/get/user/${distributorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

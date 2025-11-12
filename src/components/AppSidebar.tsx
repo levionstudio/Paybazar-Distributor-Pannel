@@ -61,7 +61,6 @@ export function AppSidebar({ role }: AppSidebarProps) {
   // Navigation Items
   const masterItems = [
     { title: "Dashboard", href: "/master", icon: LayoutDashboard },
-    { title: "Create Distributor", href: "/master/create", icon: UserPlus },
     { title: "Request Funds", href: "/request-funds", icon: Receipt },
     { title:"Trasactions", href: "/transactions/md", icon: Receipt },
     {title: "Requested Funds", href: "/md/requestfund", icon: Receipt},
@@ -69,7 +68,6 @@ export function AppSidebar({ role }: AppSidebarProps) {
 
   const distributorItems = [
     { title: "Dashboard", href: "/distributor", icon: LayoutDashboard },
-    { title: "Create Retailer", href: "/distributor/create", icon: UserPlus },
     { title: "Request Funds", href: "/request-funds/distributor", icon: Receipt },
     { title:"Trasactions", href: "/transactions/distributor", icon: Receipt },
     {title: "Requested Funds", href: "/distributor/requestedfund", icon: Receipt},

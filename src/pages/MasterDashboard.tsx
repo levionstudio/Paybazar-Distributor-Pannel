@@ -66,7 +66,7 @@ const MasterDashboard = () => {
 
       try {
         const res = await axios.get(
-          `http://64.227.165.232:8080/md/get/distributor/${masterDistributorId}`,
+          `https://server.paybazaar.in/admin/get/distributor/${masterDistributorId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
