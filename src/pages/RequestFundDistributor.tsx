@@ -198,7 +198,7 @@ const RequestFundsDistributor = () => {
   };
 
   return (
-    <DashboardLayout role="distributor" walletBalance={10}>
+    <DashboardLayout role="distributor" walletBalance={walletBalance}>
       <div className="flex flex-col max-w-2xl mx-auto w-full">
         <Card className="shadow-md border rounded-xl overflow-hidden">
           <CardHeader className="gradient-primary text-primary-foreground rounded-t-xl">
