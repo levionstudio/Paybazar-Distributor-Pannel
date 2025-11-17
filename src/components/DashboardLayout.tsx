@@ -23,6 +23,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, role, walletBalance = 50000 }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const userEmail = localStorage.getItem("userEmail") || "user@example.com";
+  
 
   useEffect(() => {
     const authToken = localStorage.getItem("authToken");

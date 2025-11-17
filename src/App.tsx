@@ -14,8 +14,8 @@ import RequestFunds from "./pages/requestFunds";
 import RequestFundsDistributor from "./pages/RequestFundDistributor";
 import DistributorTransactions from "./pages/Transaction";
 import MdTransactions from "./pages/Transactionmd";
-import MdFundRequests from "./pages/RequestedFundMd";
 import DistributorFundRequests from "./pages/RequestedFundDist";
+import MdFundRequests from "./pages/requestFunds";
 
 const queryClient = new QueryClient();
 
