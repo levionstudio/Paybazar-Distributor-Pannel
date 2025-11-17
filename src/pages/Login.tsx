@@ -147,15 +147,15 @@ const Login = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-slate-700">
-              <p className="flex items-center gap-3">
+              <p className="flex items-center gap-6">
                 <Mail className="w-5 h-5 text-[#0d3154]" /> info@paybazaar.in
               </p>
-              <p className="flex items-center gap-3">
+              <p className="flex items-center gap-5">
                 <Phone className="w-5 h-5 text-[#0d3154]" /> +91 9319187762
               </p>
-              <div className="flex items-start ">
-                <MapPin className="w-5 h-5 text-[#0d3154] mt-1" />
-                <span className="text-xs text-slate-700 mt-1">
+              <div className="flex  items-start">
+                <MapPin className="w-5 h-5 text-[#0d3154] flex-shrink-0" />
+                <span className="text-xs text-slate-700 leading-relaxed">
                   Unit 902, Tower B4 on 9th Spaze I-Tech Park, Sector-49, Sohna
                   Road, Gurugram, Haryana, 122018.
                 </span>
