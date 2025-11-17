@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { request } from "http";
 
 interface TokenData {
   data: {
@@ -31,11 +32,9 @@ const RequestFundsDistributor = () => {
   const [formData, setFormData] = useState({
     amount: "",
     bank_name: "",
-    account_number: "",
-    ifsc_code: "",
-    bank_branch: "",
     utr_number: "",
     remarks: "",
+    request_date: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -153,20 +152,18 @@ const RequestFundsDistributor = () => {
       requester_id: tokenData.data.distributor_id,
       requester_unique_id: tokenData.data.distributor_unique_id,
       requester_name: tokenData.data.distributor_name,
-      requster_type: "DISTRIBUTOR",
+      requester_type: "DISTRIBUTOR",
       amount: formData.amount,
       bank_name: formData.bank_name,
-      account_number: formData.account_number,
-      ifsc_code: formData.ifsc_code,
-      bank_branch: formData.bank_branch,
       utr_number: formData.utr_number,
       remarks: formData.remarks,
+      request_date: formData.request_date,
       request_status: "pending",
     };
 
     try {
       setLoading(true);
-
+      console.log(payload);
       const { data } = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/distributor/create/fund/request`,
         payload,
@@ -222,17 +219,6 @@ const RequestFundsDistributor = () => {
               >
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
-                    <Label>Amount</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      value={formData.amount}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>Bank Name</Label>
                     <Input
                       id="bank_name"
@@ -243,34 +229,27 @@ const RequestFundsDistributor = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Account Number</Label>
+                    <Label>Deposited Date</Label>
                     <Input
-                      id="account_number"
-                      value={formData.account_number}
+                      id="request_date"
+                      value={formData.request_date}
+                      onChange={handleChange}
+                      required
+                      type="date"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Amount</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      value={formData.amount}
                       onChange={handleChange}
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>IFSC Code</Label>
-                    <Input
-                      id="ifsc_code"
-                      value={formData.ifsc_code}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Bank Branch</Label>
-                    <Input
-                      id="bank_branch"
-                      value={formData.bank_branch}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
 
                   <div className="space-y-2">
                     <Label>UTR Number</Label>

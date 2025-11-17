@@ -34,12 +34,12 @@ interface FundRequest {
 
 interface DecodedToken {
   data: {
-    distributor_id?: string;
+    master_distributor_id?: string;
   };
   exp: number;
 }
 
-export default function DistributorFundRequests() {
+export default function MasterDistributorFundRequests() {
   const [requests, setRequests] = useState<FundRequest[]>([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [distributorId, setDistributorId] = useState("");
@@ -59,7 +59,7 @@ export default function DistributorFundRequests() {
 
     try {
       const decoded: DecodedToken = jwtDecode(token);
-      const id = decoded?.data?.distributor_id;
+      const id = decoded?.data?.master_distributor_id;
 
       if (!id) {
         setError("Distributor ID missing in token.");
@@ -86,7 +86,7 @@ export default function DistributorFundRequests() {
       try {
         // ✅ Fetch fund requests for distributor
         const res = await axios.get(
-          `https://server.paybazaar.in/distributor/get/fund/request/${distributorId}`,
+          `https://server.paybazaar.in/md/get/fund/request/${distributorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -111,7 +111,7 @@ export default function DistributorFundRequests() {
 
         // ✅ Fetch wallet balance for distributor
         const walletRes = await axios.get(
-          `https://server.paybazaar.in/distributor/wallet/get/balance/${distributorId}`,
+          `https://server.paybazaar.in/md/wallet/get/balance/${distributorId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -130,7 +130,7 @@ export default function DistributorFundRequests() {
   }, [distributorId]);
 
   return (
-    <DashboardLayout role="distributor" walletBalance={walletBalance}>
+    <DashboardLayout role="master" walletBalance={walletBalance}>
       <div className="px-4 sm:px-6 md:px-8 py-6 space-y-6">
 
         {/* Loading */}

@@ -116,7 +116,7 @@ const Login = () => {
   return (
     <div className="h-screen w-screen overflow-hidden grid grid-cols-1 md:grid-cols-2">
       {/* LEFT SIDE */}
-     <div className="hidden md:flex flex-col justify-center items-center bg-[#0d3154] px-12 py-16 text-white gap-8">
+      <div className="hidden md:flex flex-col justify-center items-center bg-[#0d3154] px-12 py-16 text-white gap-8">
         <div className="flex flex-col items-center max-w-lg text-center space-y-6">
           <img
             src="/login-page.png"
@@ -140,7 +140,7 @@ const Login = () => {
             </li>
           </ul>
 
-          <Card className="w-full shadow-xl border-0 rounded-2xl bg-white backdrop-blur-lg border border-white/20">
+          <Card className="w-full shadow-xl border-0 rounded-2xl bg-white backdrop-blur-lg  border-white/20">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-[#0d3154] flex items-center gap-3">
                 <Building2 className="w-6 h-6 text-[#0d3154]" /> Company Info
@@ -153,10 +153,13 @@ const Login = () => {
               <p className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-[#0d3154]" /> +91 9319187762
               </p>
-              <p className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-[#0d3154]  " /> Paybazaar
-                Technologies Pvt Ltd, Office No-304, Plot 2, Delhi
-              </p>
+              <div className="flex items-start ">
+                <MapPin className="w-5 h-5 text-[#0d3154] mt-1" />
+                <span className="text-xs text-slate-700 mt-1">
+                  Unit 902, Tower B4 on 9th Spaze I-Tech Park, Sector-49, Sohna
+                  Road, Gurugram, Haryana, 122018.
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>

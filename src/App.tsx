@@ -16,6 +16,7 @@ import DistributorTransactions from "./pages/Transaction";
 import MdTransactions from "./pages/Transactionmd";
 import DistributorFundRequests from "./pages/RequestedFundDist";
 import MdFundRequests from "./pages/requestFunds";
+import MasterDistributorFundRequests from "./pages/MdFundRequets";
 
 const queryClient = new QueryClient();
 
@@ -38,7 +39,7 @@ const App = () => (
           <Route path="/request-funds/distributor" element={<RequestFundsDistributor />} />
           <Route path="/transactions/distributor" element={<DistributorTransactions />} />
           <Route path="/transactions/md" element={<MdTransactions />} />
-           <Route path="/md/requestfund" element={<MdFundRequests />} />
+           <Route path="/md/requestfund" element={<MasterDistributorFundRequests />} />
            <Route path="/distributor/requestedfund" element={<DistributorFundRequests />} />
 
           <Route path="*" element={<NotFound />} />

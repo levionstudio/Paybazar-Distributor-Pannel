@@ -1,286 +1,253 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import { DashboardLayout } from "@/components/DashboardLayout";
-
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardContent,
 } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-interface FundRequest {
-  request_unique_id: string;
-  requester_unique_id: string;
-  requester_name: string;
-  requester_type: string;
-  amount: string;
-  remarks: string;
-  request_status: string;
-}
-
-interface DecodedToken {
+interface TokenData {
   data: {
+    admin_id: string;
     master_distributor_id?: string;
+    distributor_id?: string;
+    master_distributor_unique_id: string;
+    master_distributor_name: string;
   };
   exp: number;
 }
 
-export default function MdFundRequests() {
-  const [requests, setRequests] = useState<FundRequest[]>([]);
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [masterDistributorId, setMasterDistributorId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [walletLoading, setWalletLoading] = useState(true);
-  const [walletError, setWalletError] = useState<string | null>(null);
+const   RequestFunds = () => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // ✅ Decode token
+  const [formData, setFormData] = useState({
+    bank_name: "",
+    request_date: "",
+    utr_number: "",
+    amount: "",
+    remarks: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [tokenData, setTokenData] = useState<TokenData | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  const redirectTo = useCallback(
+    (path: string) => {
+      navigate(path, { replace: true });
+    },
+    [navigate]
+  );
+
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
+    const checkAuth = () => {
+      const token = localStorage.getItem("authToken");
+      const userRole = localStorage.getItem("userRole");
 
+      if (!token || !userRole) {
+        redirectTo("/login");
+        return;
+      }
+
+      try {
+        const decoded: TokenData = jwtDecode(token);
+
+        if (!decoded?.exp || decoded.exp * 1000 < Date.now()) {
+          localStorage.removeItem("authToken");
+          toast({
+            title: "Session Expired",
+            description: "Please log in again.",
+            variant: "destructive",
+          });
+          redirectTo("/login");
+          return;
+        }
+
+        setTokenData(decoded);
+        setRole(userRole);
+      } catch (err) {
+        console.error("Token decode error:", err);
+        localStorage.removeItem("authToken");
+        redirectTo("/login");
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, [toast, redirectTo]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tokenData || !role) return;
+
+    const token = localStorage.getItem("authToken");
     if (!token) {
-      setError("Authentication token missing.");
-      setLoading(false);
+      redirectTo("/login");
       return;
     }
 
+    const requester_id =
+      role === "master"
+        ? tokenData.data.master_distributor_id
+        : tokenData.data.distributor_id;
+
+    const requester_type =
+      role === "master" ? "MASTER_DISTRIBUTOR" : "DISTRIBUTOR";
+
+    const apiEndpoint =
+      role === "master"
+        ? "/md/create/fund/request"
+        : "/distributor/create/fund/request";
+
+    const payload = {
+      admin_id: tokenData.data.admin_id,
+      requester_id,
+      requester_type,
+      requester_unique_id: tokenData.data.master_distributor_unique_id,
+      requester_name: tokenData.data.master_distributor_name,
+      ...formData,
+      request_status: "pending",
+    };
+
     try {
-      const decoded: DecodedToken = jwtDecode(token);
-      const id = decoded?.data?.master_distributor_id;
+      setLoading(true);
+      const { data } = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}${apiEndpoint}`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      if (!id) {
-        setError("Master Distributor ID missing in token.");
-        setLoading(false);
-        return;
-      }
+      toast({
+        title: "Fund Request Submitted",
+        description: data.message || "Request submitted successfully.",
+      });
 
-      setMasterDistributorId(id);
-    } catch (err) {
-      setError("Failed to decode token.");
+      setTimeout(
+        () => redirectTo(role === "master" ? "/master" : "/distributor"),
+        800
+      );
+    } catch (err: any) {
+      console.error("Fund request error:", err);
+      toast({
+        title: "Request Failed",
+        description:
+          err.response?.data?.message ||
+          "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  // ✅ Fetch fund requests
-  useEffect(() => {
-    if (!masterDistributorId) return;
+  // Helper function to get the appropriate input type
+  const getInputType = (key: string) => {
+    if (key === "amount") return "number";
+    if (key === "request_date") return "date";
+    return "text";
+  };
 
-    const fetchData = async () => {
-      setLoading(true);
-      const token = localStorage.getItem("authToken");
-
-      try {
-        // ✅ Fetch fund requests
-        const res = await axios.get(
-          `https://server.paybazaar.in/md/get/fund/request/${masterDistributorId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (res.data.status === "success") {
-          const mapped: FundRequest[] = res.data.data.map((item: any) => ({
-            request_unique_id: item.request_unique_id,
-            requester_unique_id: item.requester_unique_id,
-            requester_name: item.requester_name,
-            requester_type: item.requester_type,
-            amount: item.amount,
-            remarks: item.remarks,
-            request_status: item.request_status,
-          }));
-
-          setRequests(mapped);
-          setError(null);
-        } else {
-          setRequests([]);
-          setError(res.data.message || "Failed to load fund requests.");
-        }
-      } catch (err) {
-        console.error(err);
-        setError("No fund requests found.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [masterDistributorId]);
-  useEffect(() => {
-    if (!masterDistributorId) return;
-
-    const fetchWalletBalance = async () => {
-      const token = localStorage.getItem("authToken");
-      if (!token) {
-        setWalletError("Authentication token missing");
-        setWalletLoading(false);
-        return;
-      }
-
-      try {
-        const res = await axios.get(
-          `https://server.paybazaar.in/md/wallet/get/balance/${masterDistributorId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (res.data.status === "success" && res.data.data?.balance !== undefined) {
-          setWalletBalance(Number(res.data.data.balance));
-          setWalletError(null);
-        } else {
-          setWalletBalance(0);
-          setWalletError("Failed to fetch wallet balance");
-        }
-      } catch (err) {
-        console.error("Wallet fetch error:", err);
-        setWalletBalance(0);
-        setWalletError("Error fetching wallet balance");
-      } finally {
-        setWalletLoading(false);
-      }
-    };
-
-    fetchWalletBalance();
-  }, [masterDistributorId]);
+  // Don't render anything until authentication check finishes
+  if (isCheckingAuth) return null;
 
   return (
-    <DashboardLayout role="master" walletBalance={walletBalance}>
-      <div className="px-4 sm:px-6 md:px-8 py-6 space-y-6">
+    <DashboardLayout role="master" walletBalance={250000}>
+      <div className="flex flex-col max-w-2xl mx-auto w-full">
+        <Card className="shadow-md border border-border rounded-xl overflow-hidden">
+          <CardHeader className="gradient-primary text-primary-foreground rounded-t-xl">
+            <CardTitle className="text-2xl">Fund Request Form</CardTitle>
+            <CardDescription className="text-primary-foreground/80 mt-1">
+              Fill in the details to request funds.
+            </CardDescription>
+          </CardHeader>
 
-        {/* Loading */}
-        {loading && (
-          <div className="animate-pulse space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-10 bg-gray-200 rounded-md"></div>
-            ))}
-          </div>
-        )}
+          <CardContent className="p-8 bg-card">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-5">
+                {Object.entries(formData).map(([key, value]) =>
+                  key !== "remarks" ? (
+                    <div className="space-y-2" key={key}>
+                      <Label htmlFor={key} className="font-medium">
+                        {key.replace(/_/g, " ").toUpperCase()}
+                      </Label>
+                      <Input
+                        id={key}
+                        type={getInputType(key)}
+                        value={value}
+                        onChange={handleChange}
+                        className="h-11"
+                        required
+                      />
+                    </div>
+                  ) : null
+                )}
+              </div>
 
-        {/* Error */}
-        {error && !loading && (
-          <p className="text-center text-red-600 py-6">{error}</p>
-        )}
+              <div className="space-y-2">
+                <Label htmlFor="remarks" className="font-medium">
+                  Remarks
+                </Label>
+                <Textarea
+                  id="remarks"
+                  value={formData.remarks}
+                  onChange={handleChange}
+                  className="h-32"
+                  required
+                />
+              </div>
 
-        {/* Content */}
-        {!loading && !error && (
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold">
-                Fund Requests
-              </CardTitle>
-            </CardHeader>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={loading}
+                  onClick={() =>
+                    navigate(role === "master" ? "/master" : "/distributor")
+                  }
+                >
+                  Cancel
+                </Button>
 
-            <CardContent>
-
-              {requests.length === 0 ? (
-                <p className="text-center py-6 text-muted-foreground">
-                  No fund requests found.
-                </p>
-              ) : (
-                <>
-                  {/* Desktop Table */}
-                  <div className="hidden md:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-center w-16">ID</TableHead>
-                          <TableHead className="text-center">Request ID</TableHead>
-                          <TableHead className="text-center">Requester</TableHead>
-                          <TableHead className="text-center">Amount</TableHead>
-                          <TableHead className="text-center">Remarks</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {requests.map((r, index) => (
-                          <TableRow key={r.request_unique_id}>
-                            <TableCell className="text-center font-semibold">
-                              {index + 1}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {r.request_unique_id}
-                            </TableCell>
-
-                            <TableCell className="text-center">
-                              {r.requester_name}
-                            </TableCell>
-
-                            <TableCell className="text-center font-semibold">
-                              ₹{parseFloat(r.amount).toLocaleString("en-IN")}
-                            </TableCell>
-
-                            <TableCell className="text-center text-gray-600">
-                              {r.remarks}
-                            </TableCell>
-
-                            <TableCell className="text-center font-semibold">
-                              <span
-                                className={`px-3 py-1 rounded-md text-white ${
-                                  r.request_status === "APPROVED"
-                                    ? "bg-green-600"
-                                    : r.request_status === "PENDING"
-                                    ? "bg-yellow-500"
-                                    : "bg-red-600"
-                                }`}
-                              >
-                                {r.request_status}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {/* Mobile Cards */}
-                  <div className="md:hidden space-y-4">
-                    {requests.map((r, index) => (
-                      <div
-                        key={r.request_unique_id}
-                        className="border rounded-lg p-4 shadow-lg"
-                      >
-                        <p className="font-semibold">#{index + 1}</p>
-                        <p><strong>Request ID:</strong> {r.request_unique_id}</p>
-                        <p><strong>Name:</strong> {r.requester_name}</p>
-                        <p><strong>Amount:</strong> ₹{r.amount}</p>
-                        <p><strong>Remarks:</strong> {r.remarks}</p>
-                        <p>
-                          <strong>Status:</strong>{" "}
-                          <span
-                            className={`px-2 py-1 rounded-md text-white ${
-                              r.request_status === "APPROVED"
-                                ? "bg-green-600"
-                                : r.request_status === "PENDING"
-                                ? "bg-yellow-500"
-                                : "bg-red-600"
-                            }`}
-                          >
-                            {r.request_status}
-                          </span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                <Button
+                  type="submit"
+                  className="flex-1 gradient-primary hover:opacity-90"
+                  disabled={loading}
+                >
+                  {loading ? "Submitting..." : "Submit Request"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
-}
+};
+
+export default RequestFunds;
