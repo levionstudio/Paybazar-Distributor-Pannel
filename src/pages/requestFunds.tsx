@@ -43,6 +43,9 @@ const   RequestFunds = () => {
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const redirectTo = useCallback(
     (path: string) => {
@@ -165,6 +168,51 @@ const   RequestFunds = () => {
     }
   };
 
+  // Fetch wallet balance
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      const masterDistributorId = tokenData?.data?.master_distributor_id;
+      const token = localStorage.getItem("authToken");
+
+      if (!masterDistributorId || !token) {
+        setWalletError("Invalid master distributor ID or token");
+        setWalletLoading(false);
+        return;
+      }
+
+      setWalletLoading(true);
+
+      try {
+        const res = await axios.get(
+          `https://server.paybazaar.in/md/wallet/get/balance/${masterDistributorId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (res.data.status === "success" && res.data.data?.balance !== undefined) {
+          setWalletBalance(Number(res.data.data.balance));
+          setWalletError(null);
+        } else {
+          setWalletBalance(0);
+          setWalletError("Failed to fetch wallet balance");
+        }
+      } catch (err) {
+        console.error("Wallet fetch error:", err);
+        setWalletBalance(0);
+        setWalletError("Error fetching wallet balance");
+      } finally {
+        setWalletLoading(false);
+      }
+    };
+
+    if (tokenData) {
+      fetchWalletBalance();
+    }
+  }, [tokenData]);
+
   // Helper function to get the appropriate input type
   const getInputType = (key: string) => {
     if (key === "amount") return "number";
@@ -176,7 +224,7 @@ const   RequestFunds = () => {
   if (isCheckingAuth) return null;
 
   return (
-    <DashboardLayout role="master" walletBalance={250000}>
+    <DashboardLayout role="master" walletBalance={walletBalance}>
       <div className="flex flex-col max-w-2xl mx-auto w-full">
         <Card className="shadow-md border border-border rounded-xl overflow-hidden">
           <CardHeader className="gradient-primary text-primary-foreground rounded-t-xl">
