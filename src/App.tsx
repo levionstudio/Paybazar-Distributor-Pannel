@@ -17,6 +17,9 @@ import MdTransactions from "./pages/Transactionmd";
 import DistributorFundRequests from "./pages/RequestedFundDist";
 import MdFundRequests from "./pages/requestFunds";
 import MasterDistributorFundRequests from "./pages/MdFundRequets";
+import MdFundRetailer from "./pages/MdFundRetailer";
+import MdFundDistributor from "./pages/MdFundDistributor";
+import DistributorFundRetailer from "./pages/DistributorFundRetailer";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +44,9 @@ const App = () => (
           <Route path="/transactions/md" element={<MdTransactions />} />
            <Route path="/md/requestfund" element={<MasterDistributorFundRequests />} />
            <Route path="/distributor/requestedfund" element={<DistributorFundRequests />} />
+          <Route path="/md/fund/retailer" element={<MdFundRetailer />} />
+          <Route path="/md/fund/distributor" element={<MdFundDistributor />} />
+          <Route path="/distributor/fund/retailer" element={<DistributorFundRetailer />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { LayoutDashboard, UserPlus, Receipt } from "lucide-react"
+import { LayoutDashboard, UserPlus, Receipt, Wallet } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
   Sidebar,
@@ -64,6 +64,8 @@ export function AppSidebar({ role }: AppSidebarProps) {
     { title: "Request Funds", href: "/request-funds", icon: Receipt },
     { title:"Trasactions", href: "/transactions/md", icon: Receipt },
     {title: "Requested Funds", href: "/md/requestfund", icon: Receipt},
+    { title: "Fund Retailer", href: "/md/fund/retailer", icon: Wallet },
+    { title: "Fund Distributor", href: "/md/fund/distributor", icon: Wallet },
   ]
 
   const distributorItems = [
@@ -71,6 +73,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
     { title: "Request Funds", href: "/request-funds/distributor", icon: Receipt },
     { title:"Trasactions", href: "/transactions/distributor", icon: Receipt },
     {title: "Requested Funds", href: "/distributor/requestedfund", icon: Receipt},
+    { title: "Fund Retailer", href: "/distributor/fund/retailer", icon: Wallet },
   ]
 
   const navItems = role === "master" ? masterItems : distributorItems
