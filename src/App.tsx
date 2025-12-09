@@ -20,6 +20,8 @@ import MasterDistributorFundRequests from "./pages/MdFundRequets";
 import MdFundRetailer from "./pages/MdFundRetailer";
 import MdFundDistributor from "./pages/MdFundDistributor";
 import DistributorFundRetailer from "./pages/DistributorFundRetailer";
+import RevertRequest from "./pages/RevertRequest";
+import RevertHistory from "./pages/RevertHistory";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +49,10 @@ const App = () => (
           <Route path="/md/fund/retailer" element={<MdFundRetailer />} />
           <Route path="/md/fund/distributor" element={<MdFundDistributor />} />
           <Route path="/distributor/fund/retailer" element={<DistributorFundRetailer />} />
+          <Route path="/md/revert/request" element={<RevertRequest />} />
+          <Route path="/distributor/revert/request" element={<RevertRequest />} />
+          <Route path="/md/revert/history" element={<RevertHistory />} />
+          <Route path="/distributor/revert/history" element={<RevertHistory />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
