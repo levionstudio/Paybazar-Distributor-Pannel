@@ -13,7 +13,6 @@ interface TokenData {
   data: {
     admin_id: string;
     master_distributor_id?: string;
-    distributor_id?: string;
     [key: string]: any;
   };
   exp: number;
@@ -28,7 +27,7 @@ interface RevertHistory {
   created_at: string;
 }
 
-export default function RevertHistoryPage() {
+export default function MdRevertHistory() {
   const token = localStorage.getItem("authToken");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [revertHistory, setRevertHistory] = useState<RevertHistory[]>([]);
@@ -36,12 +35,11 @@ export default function RevertHistoryPage() {
   const [searched, setSearched] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
-  const [userRole, setUserRole] = useState<"master" | "distributor">("distributor");
   const [walletBalance, setWalletBalance] = useState(0);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const itemsPerPage = 10;
 
-  // Decode token and determine role
+  // Decode token and verify Master Distributor role
   useEffect(() => {
     const checkAuth = () => {
       if (!token) {
@@ -60,18 +58,13 @@ export default function RevertHistoryPage() {
           return;
         }
 
-        setTokenData(decoded);
-
-        // Determine role based on token
-        if (decoded.data.master_distributor_id) {
-          setUserRole("master");
-        } else if (decoded.data.distributor_id) {
-          setUserRole("distributor");
-        } else {
-          toast.error("Invalid user role");
+        if (!decoded.data.master_distributor_id) {
+          toast.error("Unauthorized access. Master Distributor only.");
           window.location.href = "/login";
           return;
         }
+
+        setTokenData(decoded);
       } catch (error) {
         console.error("Error decoding token:", error);
         toast.error("Invalid token. Please login again.");
@@ -92,21 +85,13 @@ export default function RevertHistoryPage() {
       if (!token) return;
 
       try {
-        let endpoint = "";
-        if (userRole === "master" && tokenData.data.master_distributor_id) {
-          endpoint = `${import.meta.env.VITE_API_BASE_URL}/md/wallet/get/balance/${tokenData.data.master_distributor_id}`;
-        } else if (userRole === "distributor" && tokenData.data.distributor_id) {
-          endpoint = `${import.meta.env.VITE_API_BASE_URL}/distributor/wallet/get/balance/${tokenData.data.distributor_id}`;
-        }
-
-        if (endpoint) {
-          const response = await fetch(endpoint, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const data = await response.json();
-          if (data.status === "success") {
-            setWalletBalance(Number(data.data.balance) || 0);
-          }
+        const endpoint = `${import.meta.env.VITE_API_BASE_URL}/md/wallet/get/balance/${tokenData.data.master_distributor_id}`;
+        const response = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (data.status === "success") {
+          setWalletBalance(Number(data.data.balance) || 0);
         }
       } catch (error) {
         console.error("Error fetching balance:", error);
@@ -114,7 +99,7 @@ export default function RevertHistoryPage() {
     };
 
     fetchBalance();
-  }, [tokenData, userRole, token]);
+  }, [tokenData, token]);
 
   // Fetch revert history by phone number
   const fetchRevertHistory = async () => {
@@ -132,9 +117,7 @@ export default function RevertHistoryPage() {
     setSearched(true);
 
     try {
-      const endpoint = userRole === "master"
-        ? `${import.meta.env.VITE_API_BASE_URL}/md/revert/get/history/${phoneNumber}`
-        : `${import.meta.env.VITE_API_BASE_URL}/distributor/revert/get/history/${phoneNumber}`;
+      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/md/revert/get/history/${phoneNumber}`;
 
       const response = await axios.get(endpoint, {
         headers: {
@@ -243,7 +226,7 @@ export default function RevertHistoryPage() {
 
   if (isCheckingAuth) {
     return (
-      <DashboardLayout role={userRole} walletBalance={walletBalance}>
+      <DashboardLayout role="master" walletBalance={walletBalance}>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -252,7 +235,7 @@ export default function RevertHistoryPage() {
   }
 
   return (
-    <DashboardLayout role={userRole} walletBalance={walletBalance}>
+    <DashboardLayout role="master" walletBalance={walletBalance}>
       <div className="space-y-4 md:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
