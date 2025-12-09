@@ -12,8 +12,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Search, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+
+interface Distributor {
+  distributor_unique_id: string;
+  distributor_id: string;
+  distributor_name: string;
+  distributor_phone: string;
+  distributor_wallet_balance: string;
+}
+
+interface Retailer {
+  user_unique_id: string;
+  user_name: string;
+  user_phone: string;
+  user_wallet_balance: string;
+}
 
 interface UserDetails {
   name: string;
@@ -33,10 +48,14 @@ interface TokenData {
 
 export default function MdRevertRequest() {
   const [userType, setUserType] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [selectedDistributorId, setSelectedDistributorId] = useState("");
+  const [selectedRetailerId, setSelectedRetailerId] = useState("");
+  const [distributors, setDistributors] = useState<Distributor[]>([]);
+  const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [amount, setAmount] = useState("");
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingDistributors, setIsLoadingDistributors] = useState(false);
+  const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -46,7 +65,9 @@ export default function MdRevertRequest() {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem("authToken");
+      
       if (!token) {
+        console.error(" No auth token found");
         toast.error("Authentication required. Please login.");
         window.location.href = "/login";
         return;
@@ -54,8 +75,10 @@ export default function MdRevertRequest() {
 
       try {
         const decoded: TokenData = jwtDecode(token);
+   
 
         if (!decoded?.exp || decoded.exp * 1000 < Date.now()) {
+          console.error("Token expired");
           localStorage.removeItem("authToken");
           toast.error("Session expired. Please log in again.");
           window.location.href = "/login";
@@ -63,6 +86,7 @@ export default function MdRevertRequest() {
         }
 
         if (!decoded.data.master_distributor_id) {
+          console.error(" Not a master distributor account");
           toast.error("Unauthorized access. Master Distributor only.");
           window.location.href = "/login";
           return;
@@ -70,7 +94,7 @@ export default function MdRevertRequest() {
 
         setTokenData(decoded);
       } catch (error) {
-        console.error("Error decoding token:", error);
+        console.error(" Error decoding token:", error);
         toast.error("Invalid token. Please login again.");
         window.location.href = "/login";
       } finally {
@@ -95,115 +119,223 @@ export default function MdRevertRequest() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
+        
         if (data.status === "success") {
           setWalletBalance(Number(data.data.balance) || 0);
+        } else {
+          console.error(" Failed to fetch balance:", data);
         }
       } catch (error) {
-        console.error("Error fetching balance:", error);
+        console.error(" Error fetching balance:", error);
       }
     };
 
     fetchBalance();
   }, [tokenData]);
 
-  // API endpoints for Master Distributor
-  const getSearchEndpoint = (type: string, phone: string) => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL;
-    const endpoints: { [key: string]: string } = {
-      distributor: `${baseUrl}/md/get/distributor/phone/${phone}`,
-      retailer: `${baseUrl}/md/get/user/phone/${phone}`,
-    };
-    return endpoints[type] || "";
-  };
+  // Fetch distributors when user type is selected
+  useEffect(() => {
+    if (!userType || !tokenData?.data?.master_distributor_id) {
+      setDistributors([]);
+      setRetailers([]);
+      return;
+    }
 
-  const getRevertEndpoint = (type: string) => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL;
-    const endpoints: { [key: string]: string } = {
-      distributor: `${baseUrl}/md/distributor/wallet/refund`,
-      retailer: `${baseUrl}/md/user/wallet/refund`,
+    const fetchDistributors = async () => {
+      setIsLoadingDistributors(true);
+      const token = localStorage.getItem("authToken");
+      
+      try {
+        const endpoint = `${import.meta.env.VITE_API_BASE_URL}/admin/get/distributors/${tokenData.data.master_distributor_id}`;
+
+        const response = await fetch(endpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(` HTTP Error ${response.status}:`, errorText);
+          toast.error(`Failed to load distributors: ${response.status}`);
+          setDistributors([]);
+          return;
+        }
+
+        const responseText = await response.text();
+
+        if (!responseText || responseText.trim() === '') {
+          toast.info("No distributors found");
+          setDistributors([]);
+          return;
+        }
+
+        const data = JSON.parse(responseText);
+
+        let distributorsList: Distributor[] = [];
+        
+        // Handle different response structures
+        if (data.status === "success" && data.data) {
+          let extractedData = data.data;
+          if (Array.isArray(extractedData)) {
+            distributorsList = extractedData;
+          } else if (extractedData && Array.isArray(extractedData.distributors)) {
+            distributorsList = extractedData.distributors;
+          }
+        } else if (Array.isArray(data)) {
+          distributorsList = data;
+        }
+
+        setDistributors(distributorsList);
+
+        if (distributorsList.length === 0) {
+          toast.info("No distributors found under your account");
+        } else {
+          toast.success(`Loaded ${distributorsList.length} distributor${distributorsList.length > 1 ? 's' : ''}`);
+        }
+      } catch (error) {
+        console.error(`Error fetching distributors:`, error);
+        toast.error("Failed to load distributors. Please try again.");
+        setDistributors([]);
+      } finally {
+        setIsLoadingDistributors(false);
+      }
     };
-    return endpoints[type] || "";
-  };
+
+    fetchDistributors();
+  }, [userType, tokenData]);
+
+  // Fetch retailers when distributor is selected (only for retailer type)
+  useEffect(() => {
+    if (userType !== "retailer" || !selectedDistributorId) {
+      setRetailers([]);
+      return;
+    }
+
+    const fetchRetailers = async () => {
+      setIsLoadingRetailers(true);
+      const token = localStorage.getItem("authToken");
+      
+      try {
+        // Find the selected distributor to get the distributor_id (not distributor_unique_id)
+        const selectedDist = distributors.find(d => d.distributor_unique_id === selectedDistributorId);
+        const distributorId = selectedDist?.distributor_id || selectedDistributorId;
+        
+      
+        const endpoint = `${import.meta.env.VITE_API_BASE_URL}/admin/get/users/${distributorId}`;
+        console.log(`🌐 [MD] API Endpoint:`, endpoint);
+
+        const response = await fetch(endpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(` HTTP Error ${response.status}:`, errorText);
+          toast.error(`Failed to load retailers: ${response.status}`);
+          setRetailers([]);
+          return;
+        }
+
+        const responseText = await response.text();
+
+        if (!responseText || responseText.trim() === '') {
+          toast.info("No retailers found under this distributor");
+          setRetailers([]);
+          return;
+        }
+
+        const data = JSON.parse(responseText);
+
+        let retailersList: Retailer[] = [];
+        
+        // Handle different response structures
+        if (data.status === "success" && data.data) {
+          let extractedData = data.data;
+          if (Array.isArray(extractedData)) {
+            retailersList = extractedData;
+          } else if (extractedData && Array.isArray(extractedData.users)) {
+            retailersList = extractedData.users;
+          }
+        } else if (Array.isArray(data)) {
+          retailersList = data;
+        }
+
+        setRetailers(retailersList);
+        if (retailersList.length === 0) {
+          toast.info("No retailers found under this distributor");
+        } else {
+          toast.success(`Loaded ${retailersList.length} retailer${retailersList.length > 1 ? 's' : ''}`);
+        }
+      } catch (error) {
+        console.error(` Error fetching retailers:`, error);
+        toast.error("Failed to load retailers. Please try again.");
+        setRetailers([]);
+      } finally {
+        setIsLoadingRetailers(false);
+      }
+    };
+
+    fetchRetailers();
+  }, [selectedDistributorId, userType, distributors]);
 
   const handleUserTypeChange = (value: string) => {
     setUserType(value);
-    setPhoneNumber("");
+    setSelectedDistributorId("");
+    setSelectedRetailerId("");
     setAmount("");
     setUserDetails(null);
+    setRetailers([]);
   };
 
-  const handleSearchUser = async () => {
-    if (!userType) {
-      toast.error("Please select user type");
-      return;
-    }
+  const handleDistributorSelection = (distributorId: string) => {
+    setSelectedDistributorId(distributorId);
+    setSelectedRetailerId("");
+    setUserDetails(null);
 
-    if (!phoneNumber || phoneNumber.length !== 10) {
-      toast.error("Please enter a valid 10-digit phone number");
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const endpoint = getSearchEndpoint(userType, phoneNumber);
-      const token = localStorage.getItem("authToken");
-
-      const response = await fetch(endpoint, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && (data.status === "success" || data.success)) {
-        const userData = data.data;
-
-        let name, phone, userId, balance;
-
-        if (userType === "distributor") {
-          name = userData.distributor_name;
-          phone = userData.distributor_phone;
-          userId = userData.distributor_unique_id;
-          balance = userData.distributor_wallet_balance;
-        } else {
-          name = userData.user_name;
-          phone = userData.user_phone;
-          userId = userData.user_unique_id;
-          balance = userData.user_wallet_balance;
-        }
-
-        setUserDetails({
-          name: name || "N/A",
-          phone: phone || phoneNumber,
-          userId: userId || "N/A",
-          currentBalance: parseFloat(balance || "0"),
-        });
-        toast.success(data.msg || "User found successfully");
-      } else {
-        if (response.status === 404 || response.status === 500) {
-          const userTypeText = userType === "distributor" ? "Distributor" : "Retailer";
-          toast.error(`${userTypeText} with phone number ${phoneNumber} not found or not registered`);
-        } else {
-          toast.error(data.msg || data.message || "User not found");
-        }
-        setUserDetails(null);
+    if (userType === "distributor") {
+      // For distributor type, show details immediately
+      const selectedDist = distributors.find((d) => d.distributor_unique_id === distributorId);
+      if (selectedDist) {
+        const details: UserDetails = {
+          name: selectedDist.distributor_name || "N/A",
+          phone: selectedDist.distributor_phone || "N/A",
+          userId: selectedDist.distributor_unique_id || "N/A",
+          currentBalance: parseFloat(selectedDist.distributor_wallet_balance || "0"),
+        };
+        setUserDetails(details);
+        toast.success(`Selected: ${details.name}`);
       }
-    } catch (error) {
-      console.error("Error searching user:", error);
-      const userTypeText = userType === "distributor" ? "Distributor" : "Retailer";
-      toast.error(`${userTypeText} with phone number ${phoneNumber} not found or not registered`);
-      setUserDetails(null);
-    } finally {
-      setIsSearching(false);
+    }
+    // For retailer type, retailers will be fetched by useEffect
+  };
+
+  const handleRetailerSelection = (retailerId: string) => {
+    setSelectedRetailerId(retailerId);
+
+    const selectedRetailer = retailers.find((r) => r.user_unique_id === retailerId);
+    if (selectedRetailer) {
+      const details: UserDetails = {
+        name: selectedRetailer.user_name || "N/A",
+        phone: selectedRetailer.user_phone || "N/A",
+        userId: selectedRetailer.user_unique_id || "N/A",
+        currentBalance: parseFloat(selectedRetailer.user_wallet_balance || "0"),
+      };
+      setUserDetails(details);
+      toast.success(`Selected: ${details.name}`);
     }
   };
 
   const handleRevert = async () => {
+    
     if (!userDetails) {
-      toast.error("Please search for a user first");
+      toast.error("Please select a user first");
       return;
     }
 
@@ -215,7 +347,13 @@ export default function MdRevertRequest() {
     const revertAmount = parseFloat(amount);
     if (revertAmount > userDetails.currentBalance) {
       const userTypeText = userType === "distributor" ? "Distributor" : "Retailer";
-      toast.error(`Insufficient balance of ${userTypeText} for revert. Current balance: ₹${userDetails.currentBalance.toFixed(2)}`);
+      console.error("Insufficient balance:", {
+        requested: revertAmount,
+        available: userDetails.currentBalance,
+      });
+      toast.error(
+        `Insufficient balance of ${userTypeText} for revert. Current balance: ₹${userDetails.currentBalance.toFixed(2)}`
+      );
       return;
     }
 
@@ -226,14 +364,23 @@ export default function MdRevertRequest() {
 
     setIsProcessing(true);
     try {
-      const endpoint = getRevertEndpoint(userType);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      let endpoint = "";
+      
+      if (userType === "distributor") {
+        endpoint = `${baseUrl}/md/refund/distributor`;
+      } else if (userType === "retailer") {
+        endpoint = `${baseUrl}/md/refund/retailer`;
+      }
+
       const token = localStorage.getItem("authToken");
 
       const payload = {
-        phone_number: phoneNumber,
+        phone_number: userDetails.phone,
         amount: amount,
         master_distributor_id: tokenData.data.master_distributor_id,
       };
+
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -248,27 +395,36 @@ export default function MdRevertRequest() {
 
       if (response.ok && (data.status === "success" || data.success)) {
         toast.success(data.msg || "Revert processed successfully");
+        
         // Reset form
         setAmount("");
         setUserDetails(null);
-        setPhoneNumber("");
+        setSelectedDistributorId("");
+        setSelectedRetailerId("");
         setUserType("");
+        
+        // Refresh page
+        window.location.reload();
       } else {
+        console.error(" Revert failed:", data);
         toast.error(data.msg || data.message || "Failed to process revert");
       }
     } catch (error) {
       console.error("Error processing revert:", error);
-      toast.error("Failed to process revert");
+      toast.error("Failed to process revert. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleReset = () => {
+    console.log("🔄 [MD] Resetting form");
     setUserType("");
-    setPhoneNumber("");
+    setSelectedDistributorId("");
+    setSelectedRetailerId("");
     setAmount("");
     setUserDetails(null);
+    setRetailers([]);
   };
 
   if (isCheckingAuth) {
@@ -287,7 +443,9 @@ export default function MdRevertRequest() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Revert Request</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Revert Request
+            </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
               Process revert requests for Distributors and Retailers
             </p>
@@ -323,50 +481,93 @@ export default function MdRevertRequest() {
               </Select>
             </div>
 
-            {/* Phone Number Search */}
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-sm font-medium">
-                Phone Number
-              </Label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  inputMode="numeric"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="Enter 10-digit phone number"
-                  maxLength={10}
-                  style={{ fontSize: "16px" }}
-                  disabled={!userType}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  onClick={handleSearchUser}
-                  disabled={isSearching || !userType || phoneNumber.length !== 10}
-                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
-                >
-                  {isSearching ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 mr-2" />
-                      Search User
-                    </>
-                  )}
-                </Button>
+            {/* Distributor Selection */}
+            {userType && (
+              <div className="space-y-2">
+                <Label htmlFor="distributor" className="text-sm font-medium">
+                  {userType === "distributor" 
+                    ? "Select Distributor" 
+                    : "Select Distributor (to view retailers)"}
+                </Label>
+                {isLoadingDistributors ? (
+                  <div className="flex items-center justify-center p-4 border rounded-md">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+                    <span className="text-sm text-muted-foreground">
+                      Loading distributors...
+                    </span>
+                  </div>
+                ) : distributors.length === 0 ? (
+                  <div className="p-4 border rounded-md text-center text-sm text-muted-foreground">
+                    No distributors found under your account
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedDistributorId}
+                    onValueChange={handleDistributorSelection}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="--Select Distributor--" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {distributors.map((distributor) => (
+                        <SelectItem
+                          key={distributor.distributor_unique_id}
+                          value={distributor.distributor_unique_id}
+                        >
+                          {distributor.distributor_name} - {distributor.distributor_phone}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* Retailer Selection (only for retailer type) */}
+            {userType === "retailer" && selectedDistributorId && (
+              <div className="space-y-2">
+                <Label htmlFor="retailer" className="text-sm font-medium">
+                  Select Retailer
+                </Label>
+                {isLoadingRetailers ? (
+                  <div className="flex items-center justify-center p-4 border rounded-md">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+                    <span className="text-sm text-muted-foreground">
+                      Loading retailers...
+                    </span>
+                  </div>
+                ) : retailers.length === 0 ? (
+                  <div className="p-4 border rounded-md text-center text-sm text-muted-foreground">
+                    No retailers found under this distributor
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedRetailerId}
+                    onValueChange={handleRetailerSelection}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="--Select Retailer--" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {retailers.map((retailer) => (
+                        <SelectItem
+                          key={retailer.user_unique_id}
+                          value={retailer.user_unique_id}
+                        >
+                          {retailer.user_name} - {retailer.user_phone}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
 
             {/* User Details Display */}
             {userDetails && (
-              <div className="bg-secondary/50 p-4 rounded-lg space-y-3">
-                <h3 className="font-semibold text-sm text-primary mb-2">
-                  User Details
+            <div className=" border border-gray-200 dark:border-gray-700 p-4 rounded-lg space-y-3">       
+             <h3 className="font-semibold text-sm text-primary mb-2">
+                  {userType === "distributor" ? "Distributor" : "Retailer"} Details
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div>
@@ -416,7 +617,12 @@ export default function MdRevertRequest() {
             {/* Submit Button */}
             <Button
               onClick={handleRevert}
-              disabled={isProcessing || !userDetails || !amount || parseFloat(amount) <= 0}
+              disabled={
+                isProcessing ||
+                !userDetails ||
+                !amount ||
+                parseFloat(amount) <= 0
+              }
               className="w-full gradient-primary text-white"
             >
               {isProcessing ? (

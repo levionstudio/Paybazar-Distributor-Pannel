@@ -4,9 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Search, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+
+interface Retailer {
+  user_unique_id: string;
+  user_name: string;
+  user_phone: string;
+  user_wallet_balance: string;
+}
 
 interface UserDetails {
   name: string;
@@ -25,10 +39,11 @@ interface TokenData {
 }
 
 export default function DistributorRevertRequest() {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [selectedRetailerId, setSelectedRetailerId] = useState("");
+  const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [amount, setAmount] = useState("");
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -38,7 +53,9 @@ export default function DistributorRevertRequest() {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem("authToken");
+      
       if (!token) {
+        console.error("No auth token found");
         toast.error("Authentication required. Please login.");
         window.location.href = "/login";
         return;
@@ -46,8 +63,9 @@ export default function DistributorRevertRequest() {
 
       try {
         const decoded: TokenData = jwtDecode(token);
-
+       
         if (!decoded?.exp || decoded.exp * 1000 < Date.now()) {
+          console.error("Token expired");
           localStorage.removeItem("authToken");
           toast.error("Session expired. Please log in again.");
           window.location.href = "/login";
@@ -55,6 +73,7 @@ export default function DistributorRevertRequest() {
         }
 
         if (!decoded.data.distributor_id) {
+          console.error("Not a distributor account");
           toast.error("Unauthorized access. Distributor only.");
           window.location.href = "/login";
           return;
@@ -87,8 +106,11 @@ export default function DistributorRevertRequest() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
+        
         if (data.status === "success") {
           setWalletBalance(Number(data.data.balance) || 0);
+        } else {
+          console.error(" Failed to fetch balance:", data);
         }
       } catch (error) {
         console.error("Error fetching balance:", error);
@@ -98,57 +120,90 @@ export default function DistributorRevertRequest() {
     fetchBalance();
   }, [tokenData]);
 
-  const handleSearchUser = async () => {
-    if (!phoneNumber || phoneNumber.length !== 10) {
-      toast.error("Please enter a valid 10-digit phone number");
-      return;
-    }
+  // Fetch retailers list
+  useEffect(() => {
+    if (!tokenData?.data?.distributor_id) return;
 
-    setIsSearching(true);
-    try {
-      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/distributor/get/user/phone/${phoneNumber}`;
+    const fetchRetailers = async () => {
+      setIsLoadingRetailers(true);
       const token = localStorage.getItem("authToken");
-
-      const response = await fetch(endpoint, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && (data.status === "success" || data.success)) {
-        const userData = data.data;
-
-        setUserDetails({
-          name: userData.user_name || "N/A",
-          phone: userData.user_phone || phoneNumber,
-          userId: userData.user_unique_id || "N/A",
-          currentBalance: parseFloat(userData.user_wallet_balance || "0"),
+      
+      try {
+        const endpoint = `${import.meta.env.VITE_API_BASE_URL}/admin/get/users/${tokenData.data.distributor_id}`;
+        
+        const response = await fetch(endpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         });
-        toast.success(data.msg || "User found successfully");
-      } else {
-        if (response.status === 404 || response.status === 500) {
-          toast.error(`Retailer with phone number ${phoneNumber} not found or not registered`);
+
+        const data = await response.json();
+
+        if (response.ok && data.status === "success") {
+          // Handle different response structures
+          let retailersList: Retailer[] = [];
+          
+          if (Array.isArray(data.data)) {
+            retailersList = data.data;
+          } else if (data.data && Array.isArray(data.data.users)) {
+            retailersList = data.data.users;
+          } else if (data.data && typeof data.data === 'object') {
+            // If data is a single object, wrap it in an array
+            retailersList = [data.data];
+          }
+
+          setRetailers(retailersList);
+          
+          if (retailersList.length === 0) {
+            toast.info("No retailers found under your account");
+          }
         } else {
-          toast.error(data.msg || data.message || "User not found");
+          console.error("Failed to fetch retailers:", data);
+          toast.error(data.msg || data.message || "Failed to load retailers");
+          setRetailers([]);
         }
-        setUserDetails(null);
+      } catch (error) {
+        console.error("Error fetching retailers:", error);
+        toast.error("Failed to load retailers. Please try again.");
+        setRetailers([]);
+      } finally {
+        setIsLoadingRetailers(false);
       }
-    } catch (error) {
-      console.error("Error searching user:", error);
-      toast.error(`Retailer with phone number ${phoneNumber} not found or not registered`);
+    };
+
+    fetchRetailers();
+  }, [tokenData]);
+
+  // Handle retailer selection
+  const handleRetailerChange = (retailerId: string) => {
+    setSelectedRetailerId(retailerId);
+    
+    const selectedRetailer = retailers.find(
+      (r) => r.user_unique_id === retailerId
+    );
+
+    if (selectedRetailer) {
+      const details: UserDetails = {
+        name: selectedRetailer.user_name || "N/A",
+        phone: selectedRetailer.user_phone || "N/A",
+        userId: selectedRetailer.user_unique_id || "N/A",
+        currentBalance: parseFloat(selectedRetailer.user_wallet_balance || "0"),
+      };
+      
+      setUserDetails(details);
+            toast.success(`Selected: ${details.name}`);
+    } else {
       setUserDetails(null);
-    } finally {
-      setIsSearching(false);
+      console.error("Retailer not found in list");
     }
   };
 
   const handleRevert = async () => {
+    
     if (!userDetails) {
-      toast.error("Please search for a user first");
+      toast.error("Please select a retailer first");
       return;
     }
 
@@ -159,7 +214,13 @@ export default function DistributorRevertRequest() {
 
     const revertAmount = parseFloat(amount);
     if (revertAmount > userDetails.currentBalance) {
-      toast.error(`Insufficient balance of Retailer for revert. Current balance: ₹${userDetails.currentBalance.toFixed(2)}`);
+      console.error(" Insufficient balance:", {
+        requested: revertAmount,
+        available: userDetails.currentBalance,
+      });
+      toast.error(
+        `Insufficient balance of Retailer for revert. Current balance: ₹${userDetails.currentBalance.toFixed(2)}`
+      );
       return;
     }
 
@@ -170,14 +231,15 @@ export default function DistributorRevertRequest() {
 
     setIsProcessing(true);
     try {
-      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/distributor/user/wallet/refund`;
+      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/distributor/refund/retailer`;
       const token = localStorage.getItem("authToken");
 
       const payload = {
-        phone_number: phoneNumber,
+        phone_number: userDetails.phone,
         amount: amount,
         distributor_id: tokenData.data.distributor_id,
       };
+
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -192,23 +254,28 @@ export default function DistributorRevertRequest() {
 
       if (response.ok && (data.status === "success" || data.success)) {
         toast.success(data.msg || "Revert processed successfully");
+        
         // Reset form
         setAmount("");
         setUserDetails(null);
-        setPhoneNumber("");
+        setSelectedRetailerId("");
+        
+        // Refresh retailers list to get updated balances
+        window.location.reload();
       } else {
+        console.error("Revert failed:", data);
         toast.error(data.msg || data.message || "Failed to process revert");
       }
     } catch (error) {
       console.error("Error processing revert:", error);
-      toast.error("Failed to process revert");
+      toast.error("Failed to process revert. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleReset = () => {
-    setPhoneNumber("");
+    setSelectedRetailerId("");
     setAmount("");
     setUserDetails(null);
   };
@@ -229,7 +296,9 @@ export default function DistributorRevertRequest() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Revert Request</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Revert Request
+            </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
               Process revert requests for Retailers
             </p>
@@ -249,47 +318,47 @@ export default function DistributorRevertRequest() {
             <CardTitle className="text-lg md:text-xl">Process Revert</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 md:space-y-6">
-            {/* Phone Number Search */}
+            {/* Retailer Selection Dropdown */}
             <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-sm font-medium">
-                Retailer Phone Number
+              <Label htmlFor="retailer" className="text-sm font-medium">
+                Select Retailer
               </Label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  inputMode="numeric"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="Enter 10-digit phone number"
-                  maxLength={10}
-                  style={{ fontSize: "16px" }}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  onClick={handleSearchUser}
-                  disabled={isSearching || phoneNumber.length !== 10}
-                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+              {isLoadingRetailers ? (
+                <div className="flex items-center justify-center p-4 border rounded-md">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+                  <span className="text-sm text-muted-foreground">
+                    Loading retailers...
+                  </span>
+                </div>
+              ) : retailers.length === 0 ? (
+                <div className="p-4 border rounded-md text-center text-sm text-muted-foreground">
+                  No retailers found under your account
+                </div>
+              ) : (
+                <Select
+                  value={selectedRetailerId}
+                  onValueChange={handleRetailerChange}
                 >
-                  {isSearching ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 mr-2" />
-                      Search User
-                    </>
-                  )}
-                </Button>
-              </div>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="--Select Retailer--" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {retailers.map((retailer) => (
+                      <SelectItem
+                        key={retailer.user_unique_id}
+                        value={retailer.user_unique_id}
+                      >
+                        {retailer.user_name} - {retailer.user_phone}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {/* User Details Display */}
             {userDetails && (
-              <div className="bg-secondary/50 p-4 rounded-lg space-y-3">
+         <div className=" border border-gray-200 dark:border-gray-700 p-4 rounded-lg space-y-3">
                 <h3 className="font-semibold text-sm text-primary mb-2">
                   Retailer Details
                 </h3>
@@ -341,7 +410,12 @@ export default function DistributorRevertRequest() {
             {/* Submit Button */}
             <Button
               onClick={handleRevert}
-              disabled={isProcessing || !userDetails || !amount || parseFloat(amount) <= 0}
+              disabled={
+                isProcessing ||
+                !userDetails ||
+                !amount ||
+                parseFloat(amount) <= 0
+              }
               className="w-full gradient-primary text-white"
             >
               {isProcessing ? (

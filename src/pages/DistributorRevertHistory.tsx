@@ -3,10 +3,16 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, RefreshCw, History } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { Loader2, RefreshCw, History } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
 interface TokenData {
@@ -16,6 +22,14 @@ interface TokenData {
     [key: string]: any;
   };
   exp: number;
+}
+
+interface Retailer {
+  user_unique_id: string;
+  user_id: string;
+  user_name: string;
+  user_phone: string;
+  user_wallet_balance: string;
 }
 
 interface RevertHistory {
@@ -29,8 +43,10 @@ interface RevertHistory {
 
 export default function DistributorRevertHistory() {
   const token = localStorage.getItem("authToken");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [selectedRetailerId, setSelectedRetailerId] = useState("");
+  const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [revertHistory, setRevertHistory] = useState<RevertHistory[]>([]);
+  const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,7 +82,7 @@ export default function DistributorRevertHistory() {
 
         setTokenData(decoded);
       } catch (error) {
-        console.error("Error decoding token:", error);
+        console.error(" Error decoding token:", error);
         toast.error("Invalid token. Please login again.");
         window.location.href = "/login";
       } finally {
@@ -94,17 +110,90 @@ export default function DistributorRevertHistory() {
           setWalletBalance(Number(data.data.balance) || 0);
         }
       } catch (error) {
-        console.error("Error fetching balance:", error);
+        console.error(" Error fetching balance:", error);
       }
     };
 
     fetchBalance();
   }, [tokenData, token]);
 
-  // Fetch revert history by phone number
+  // Fetch retailers list
+  useEffect(() => {
+    if (!tokenData?.data?.distributor_id) return;
+
+    const fetchRetailers = async () => {
+      setIsLoadingRetailers(true);
+      
+      try {
+        
+        // Find distributor_id from token data (might be in different field)
+        const distributorId = tokenData.data.distributor_id;
+        
+        const endpoint = `${import.meta.env.VITE_API_BASE_URL}/admin/get/users/${distributorId}`;
+
+        const response = await fetch(endpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(` HTTP Error ${response.status}:`, errorText);
+          toast.error(`Failed to load retailers: ${response.status}`);
+          setRetailers([]);
+          return;
+        }
+
+        const responseText = await response.text();
+
+        if (!responseText || responseText.trim() === '') {
+          toast.info("No retailers found under your account");
+          setRetailers([]);
+          return;
+        }
+
+        const data = JSON.parse(responseText);
+
+        let retailersList: Retailer[] = [];
+        
+        // Handle different response structures
+        if (data.status === "success" && data.data) {
+          let extractedData = data.data;
+          if (Array.isArray(extractedData)) {
+            retailersList = extractedData;
+          } else if (extractedData && Array.isArray(extractedData.users)) {
+            retailersList = extractedData.users;
+          }
+        } else if (Array.isArray(data)) {
+          retailersList = data;
+        }
+
+        setRetailers(retailersList);
+
+        if (retailersList.length === 0) {
+          toast.info("No retailers found under your account");
+        } else {
+          toast.success(`Loaded ${retailersList.length} retailer${retailersList.length > 1 ? 's' : ''}`);
+        }
+      } catch (error) {
+        console.error(" Error fetching retailers:", error);
+        toast.error("Failed to load retailers. Please try again.");
+        setRetailers([]);
+      } finally {
+        setIsLoadingRetailers(false);
+      }
+    };
+
+    fetchRetailers();
+  }, [tokenData, token]);
+
+  // Fetch revert history for selected retailer
   const fetchRevertHistory = async () => {
-    if (!phoneNumber.trim()) {
-      toast.error("Please enter a phone number");
+    if (!selectedRetailerId) {
+      toast.error("Please select a retailer");
       return;
     }
 
@@ -113,11 +202,21 @@ export default function DistributorRevertHistory() {
       return;
     }
 
+    const selectedRetailer = retailers.find(r => r.user_unique_id === selectedRetailerId);
+    if (!selectedRetailer) {
+      toast.error("Retailer not found");
+      return;
+    }
+
     setLoading(true);
     setSearched(true);
 
     try {
-      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/admin/revert/get/history/${phoneNumber}`;
+   
+
+      // Use user_id (UUID) for the API call
+      const userId = selectedRetailer.user_id || selectedRetailerId;
+      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/admin/revert/get/history/${selectedRetailer.user_phone}`;
 
       const response = await axios.get(endpoint, {
         headers: {
@@ -145,20 +244,22 @@ export default function DistributorRevertHistory() {
         setRevertHistory(sortedHistory);
         setCurrentPage(1);
 
+
         if (sortedHistory.length > 0) {
           toast.success(`Found ${sortedHistory.length} revert record${sortedHistory.length > 1 ? 's' : ''}`);
         } else {
-          toast.info("No revert history found for this phone number");
+          toast.info("No revert history found for this retailer");
         }
       } else {
         setRevertHistory([]);
-        toast.info("No revert history found for this phone number");
+        toast.info("No revert history found for this retailer");
       }
     } catch (error: any) {
+      console.error(" Error fetching history:", error);
       setRevertHistory([]);
 
       if (error.response?.status === 404) {
-        toast.info("No revert history found for this phone number");
+        toast.info("No revert history found for this retailer");
       } else {
         toast.error(
           error.response?.data?.message || "Failed to fetch revert history"
@@ -169,8 +270,14 @@ export default function DistributorRevertHistory() {
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRetailerChange = (retailerId: string) => {
+    setSelectedRetailerId(retailerId);
+    setSearched(false);
+    setRevertHistory([]);
+    setCurrentPage(1);
+  };
+
+  const handleSearch = () => {
     fetchRevertHistory();
   };
 
@@ -224,6 +331,8 @@ export default function DistributorRevertHistory() {
     );
   };
 
+  const selectedRetailerName = retailers.find(r => r.user_unique_id === selectedRetailerId)?.user_name;
+
   if (isCheckingAuth) {
     return (
       <DashboardLayout role="distributor" walletBalance={walletBalance}>
@@ -245,7 +354,7 @@ export default function DistributorRevertHistory() {
               Revert History
             </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Search revert history by phone number 
+              View revert history for your retailers
             </p>
           </div>
           {searched && revertHistory.length > 0 && (
@@ -256,38 +365,63 @@ export default function DistributorRevertHistory() {
           )}
         </div>
 
-        {/* Search Form */}
+        {/* Retailer Selection */}
         <Card>
           <CardContent className="pt-6">
-            <form onSubmit={handleSearch} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone-input">Retailer Phone Number</Label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Input
-                    id="phone-input"
-                    type="tel"
-                    placeholder="Enter phone number (e.g., 9876543210)"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                    maxLength={10}
-                    className="flex-1"
-                    disabled={loading}
-                    style={{ fontSize: "16px" }}
-                  />
-                  <Button type="submit" disabled={loading || !phoneNumber.trim()} className="w-full sm:w-auto">
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                    <span className="ml-2">Search</span>
-                  </Button>
-                </div>
+                <Label htmlFor="retailer">Select Retailer</Label>
+                {isLoadingRetailers ? (
+                  <div className="flex items-center justify-center p-4 border rounded-md">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+                    <span className="text-sm text-muted-foreground">
+                      Loading retailers...
+                    </span>
+                  </div>
+                ) : retailers.length === 0 ? (
+                  <div className="p-4 border rounded-md text-center text-sm text-muted-foreground">
+                    No retailers found under your account
+                  </div>
+                ) : (
+                  <Select value={selectedRetailerId} onValueChange={handleRetailerChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="--Select Retailer--" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {retailers.map((retailer) => (
+                        <SelectItem
+                          key={retailer.user_unique_id}
+                          value={retailer.user_unique_id}
+                        >
+                          {retailer.user_name} - {retailer.user_phone}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <p className="text-sm text-muted-foreground">
-                  Enter a 10-digit phone number to search revert history
+                  Select a retailer to view their revert history
                 </p>
               </div>
-            </form>
+
+              <Button 
+                onClick={handleSearch} 
+                disabled={!selectedRetailerId || loading}
+                className="w-full sm:w-auto"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <History className="h-4 w-4 mr-2" />
+                    View History
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -300,88 +434,97 @@ export default function DistributorRevertHistory() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-muted/50 sticky top-0 z-10">
-                      <tr>
-                        <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
-                          Revert ID
-                        </th>
-                        <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
-                          Unique ID
-                        </th>
-                        <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
-                          Name
-                        </th>
-                        <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
-                          Phone Number
-                        </th>
-                        <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
-                          Amount
-                        </th>
-                        <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
-                          Created At
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedHistory.length === 0 ? (
+                <>
+                  {selectedRetailerName && revertHistory.length > 0 && (
+                    <div className=" border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+                      <p className="text-sm font-medium text-center">
+                        Showing revert history for: <span className="text-primary">{selectedRetailerName}</span>
+                      </p>
+                    </div>
+                  )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead className="bg-muted/50 sticky top-0 z-10">
                         <tr>
-                          <td
-                            colSpan={6}
-                            className="text-center text-muted-foreground py-12"
-                          >
-                            <div className="flex flex-col items-center justify-center">
-                              <History className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                              <p className="text-base md:text-lg font-medium">No revert history found</p>
-                              <p className="text-xs md:text-sm">
-                                Try searching with a different phone number
-                              </p>
-                            </div>
-                          </td>
+                          <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
+                            Revert ID
+                          </th>
+                          <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
+                            Unique ID
+                          </th>
+                          <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
+                            Name
+                          </th>
+                          <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
+                            Phone Number
+                          </th>
+                          <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
+                            Amount
+                          </th>
+                          <th className="text-center whitespace-nowrap px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b">
+                            Created At
+                          </th>
                         </tr>
-                      ) : (
-                        paginatedHistory.map((record) => (
-                          <tr
-                            key={record.revert_id}
-                            className="border-b hover:bg-muted/30 transition-colors"
-                          >
-                            <td className="text-center px-2 sm:px-4 py-3">
-                              <span className="font-mono text-xs sm:text-sm font-medium break-all">
-                                {record.revert_id}
-                              </span>
-                            </td>
-                            <td className="text-center px-2 sm:px-4 py-3">
-                              <span className="font-mono text-xs sm:text-sm break-all">
-                                {record.unique_id}
-                              </span>
-                            </td>
-                            <td className="text-center px-2 sm:px-4 py-3">
-                              <span className="font-medium text-xs sm:text-sm break-words">
-                                {record.name}
-                              </span>
-                            </td>
-                            <td className="text-center px-2 sm:px-4 py-3">
-                              <span className="font-mono text-xs sm:text-sm">
-                                {record.phone}
-                              </span>
-                            </td>
-                            <td className="text-center px-2 sm:px-4 py-3">
-                              <span className="font-semibold text-xs sm:text-sm">
-                                ₹{formatAmount(record.amount)}
-                              </span>
-                            </td>
-                            <td className="text-center px-2 sm:px-4 py-3 whitespace-nowrap">
-                              <span className="text-xs sm:text-sm">
-                                {formatDate(record.created_at)}
-                              </span>
+                      </thead>
+                      <tbody>
+                        {paginatedHistory.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={6}
+                              className="text-center text-muted-foreground py-12"
+                            >
+                              <div className="flex flex-col items-center justify-center">
+                                <History className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                                <p className="text-base md:text-lg font-medium">No revert history found</p>
+                                <p className="text-xs md:text-sm">
+                                  This retailer has no revert records
+                                </p>
+                              </div>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        ) : (
+                          paginatedHistory.map((record) => (
+                            <tr
+                              key={record.revert_id}
+                              className="border-b hover:bg-muted/30 transition-colors"
+                            >
+                              <td className="text-center px-2 sm:px-4 py-3">
+                                <span className="font-mono text-xs sm:text-sm font-medium break-all">
+                                  {record.revert_id}
+                                </span>
+                              </td>
+                              <td className="text-center px-2 sm:px-4 py-3">
+                                <span className="font-mono text-xs sm:text-sm break-all">
+                                  {record.unique_id}
+                                </span>
+                              </td>
+                              <td className="text-center px-2 sm:px-4 py-3">
+                                <span className="font-medium text-xs sm:text-sm break-words">
+                                  {record.name}
+                                </span>
+                              </td>
+                              <td className="text-center px-2 sm:px-4 py-3">
+                                <span className="font-mono text-xs sm:text-sm">
+                                  {record.phone}
+                                </span>
+                              </td>
+                              <td className="text-center px-2 sm:px-4 py-3">
+                                <span className="font-semibold text-xs sm:text-sm text-red-600">
+                                  ₹{formatAmount(record.amount)}
+                                </span>
+                              </td>
+                              <td className="text-center px-2 sm:px-4 py-3 whitespace-nowrap">
+                                <span className="text-xs sm:text-sm">
+                                  {formatDate(record.created_at)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </CardContent>
 
