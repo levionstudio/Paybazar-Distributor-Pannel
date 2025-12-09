@@ -117,7 +117,7 @@ export default function MdRevertHistory() {
     setSearched(true);
 
     try {
-      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/md/revert/get/history/${phoneNumber}`;
+      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/admin/revert/get/history/${phoneNumber}`;
 
       const response = await axios.get(endpoint, {
         headers: {
@@ -245,7 +245,7 @@ export default function MdRevertHistory() {
               Revert History
             </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Search revert history by phone number (Latest first)
+              Search revert history by phone number
             </p>
           </div>
           {searched && revertHistory.length > 0 && (
